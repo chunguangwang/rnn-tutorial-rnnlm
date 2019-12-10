@@ -12,7 +12,7 @@ from datetime import datetime
 from utils import *
 from rnn_theano import RNNTheano
 
-nltk.download("book")
+# nltk.download("book")
 
 _VOCABULARY_SIZE = int(os.environ.get('VOCABULARY_SIZE', '8000'))
 _HIDDEN_DIM = int(os.environ.get('HIDDEN_DIM', '80'))
@@ -51,11 +51,11 @@ sentence_end_token = "SENTENCE_END"
 
 # Read the data and append SENTENCE_START and SENTENCE_END tokens
 print("Reading CSV file...")
-with open('data/reddit-comments-2015-08.csv', 'rb') as f:
+with open('data/reddit-comments-2015-08.csv', 'r') as f:
     reader = csv.reader(f, skipinitialspace=True)
-    reader.next()
+    next(reader)
     # Split full comments into sentences
-    sentences = itertools.chain(*[nltk.sent_tokenize(x[0].decode('utf-8').lower()) for x in reader])
+    sentences = itertools.chain(*[nltk.sent_tokenize(x[0].lower()) for x in reader])
     # Append SENTENCE_START and SENTENCE_END
     sentences = ["%s %s %s" % (sentence_start_token, x, sentence_end_token) for x in sentences]
 print("Parsed %d sentences." % (len(sentences)))
@@ -94,4 +94,4 @@ print("SGD Step time: %f milliseconds" % ((t2 - t1) * 1000.))
 if _MODEL_FILE != None:
     load_model_parameters_theano(_MODEL_FILE, model)
 
-train_with_sgd(model, X_train, y_train, nepoch=_NEPOCH, learning_rate=_LEARNING_RATE)
+# train_with_sgd(model, X_train, y_train, nepoch=_NEPOCH, learning_rate=_LEARNING_RATE)

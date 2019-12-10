@@ -1,0 +1,98 @@
+import theano
+import numpy as np
+import theano.tensor as T
+import matplotlib.pyplot as plt
+import datetime
+import sys
+from theano.tensor.nnet import sigmoid
+from theano.ifelse import ifelse
+from random import random
+
+
+def softmax(x):
+    xt = np.exp(x - np.max(x))
+    return xt / np.sum(xt)
+
+def save_model_parameters_theano(outfile, model):
+    theata1, theata2 = model.theata1.get_value(), model.theata1.get_value()
+    np.savez(outfile, theata1=theata1, theata2=theata2)
+    print("Saved model parameters to %s." % outfile)
+
+
+
+
+def load_model_parameters_theano(path, model):
+    npzfile = np.load(path)
+    U, V, W = npzfile["U"], npzfile["V"], npzfile["W"]
+    model.hidden_dim = U.shape[0]
+    model.word_dim = U.shape[1]
+    model.U.set_value(U)
+    model.V.set_value(V)
+    model.W.set_value(W)
+    print("Loaded model parameters from %s. hidden_dim=%d word_dim=%d" % (path, U.shape[0], U.shape[1]))
+
+
+
+
+
+import tensorflow as tf
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+print(x_train.shape)
+print(x_test.shape)
+print(y_train.shape)
+y_test
+
+
+x_train_Transformed = np.array([aa.flatten() for aa in x_train])
+y_matrix = np.zeros((len(y_train), 10))
+for i in range(10):
+    y_matrix[:, i] = (y_train == i).reshape(-1)
+
+
+
+
+#Define variables:
+x = T.dmatrix('x')
+w1 = theano.shared(np.random.uniform(-np.sqrt(1./784), np.sqrt(1./784), (784, 2)).astype(theano.config.floatX))
+w2 = theano.shared(np.random.uniform(-np.sqrt(1./2), np.sqrt(1./2), (2, 10)).astype(theano.config.floatX))
+b1 = theano.shared(1.)
+b2 = theano.shared(1.)
+learning_rate = 0.13
+
+
+a1 = 1/(1+T.exp(-T.dot(x,w1)-b1))
+# a2 = 1/(1+T.exp(-T.dot(x,w2)-b1))
+# x2 = T.stack([a1,a2],axis=1)
+a2 = 1/(1+T.exp(-T.dot(a1,w2)-b2))
+
+o_t = T.nnet.nnet.softmax(a2)
+
+a_hat = T.ivector('a_hat') #Actual output
+cost = -T.mean(T.log(o_t[T.arange(a_hat.shape[0]), a_hat]))
+dw1,dw2,db1,db2 = T.grad(cost,[w1,w2,b1,b2])
+
+train = theano.function(
+    inputs = [x,a_hat],
+    outputs = [o_t, a2, cost, dw1, dw2, db1, db2],
+    updates = [
+        [w1, w1-learning_rate*dw1],
+        [w2, w2-learning_rate*dw2],
+        [b1, b1-learning_rate*db1],
+        [b2, b2-learning_rate*db2]
+    ]
+)
+
+inputs = x_train_Transformed
+outputs = y_train
+
+#Iterate through all inputs and find outputs:
+cost = []
+for iteration in range(100):
+    pred, raw_pred, cost_iter, ddw1, ddw2, ddb1, ddb2 = train(inputs, outputs)
+    cost.append(cost_iter)
+
+#Plot the flow of cost:
+print('\nThe flow of cost during model run is as following:')
+plt.plot(cost)
+print("Hello theano")
