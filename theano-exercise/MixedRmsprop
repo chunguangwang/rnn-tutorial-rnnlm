@@ -266,7 +266,7 @@ def load_data(dataset):
     return rval
 
 
-def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
+def sgd_optimization_mnist(learning_rate=0.0075, n_epochs=1000,
                            dataset='mnist.pkl.gz',
                            batch_size=400):
     """
@@ -348,10 +348,11 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     # start-snippet-3
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs.
-    gamma = T.constant(0.8)
-    momentW1 = theano.shared(value=np.random.uniform(-np.sqrt(1./784)*0, np.sqrt(1./784)*0, (784, 20)).astype(theano.config.floatX), name='momentW1', borrow=True)
-    momentW2 = theano.shared(value=np.random.uniform(-np.sqrt(1./20)*0, np.sqrt(1./20)*0, (20, 10)).astype(theano.config.floatX), name='momentW2', borrow=True)
-    momentb1 = theano.shared(
+    gamma = T.constant(0.96)
+    epsilon = T.constant(1e-5)
+    scaleW1 = theano.shared(value=np.random.uniform(-np.sqrt(1./784)*0, np.sqrt(1./784)*0, (784, 20)).astype(theano.config.floatX), name='momentW1', borrow=True)
+    scaleW2 = theano.shared(value=np.random.uniform(-np.sqrt(1./20)*0, np.sqrt(1./20)*0, (20, 10)).astype(theano.config.floatX), name='momentW2', borrow=True)
+    scaleb1 = theano.shared(
             value=np.zeros(
                 (20,),
                 dtype=theano.config.floatX
@@ -359,7 +360,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             name='momentb1',
             borrow=True
         )
-    momentb2 = theano.shared(
+    scaleb2 = theano.shared(
             value=np.zeros(
                 (10,),
                 dtype=theano.config.floatX
@@ -367,21 +368,21 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
             name='momentb2',
             borrow=True
         )
-    updates = [(momentW1, momentW1 * gamma + (1 - gamma) * g_W1),
-               (momentW2, momentW2 * gamma + (1 - gamma) * g_W2),
-               (momentb1, momentb1 * gamma + (1 - gamma) * g_b1),
-               (momentb2, momentb2 * gamma + (1 - gamma) * g_b2),
-               (classifier.W1, classifier.W1 - learning_rate * momentW1),
-               (classifier.W2, classifier.W2 - learning_rate * momentW2),
-               (classifier.b1, classifier.b1 - learning_rate * momentb1),
-               (classifier.b2, classifier.b2 - learning_rate * momentb2)]
+    updates = [(scaleW1, gamma * scaleW1 + (g_W1 ** 2)),
+               (scaleW2, gamma * scaleW2 + (g_W2 ** 2)),
+               (scaleb1, gamma * scaleb1 + (g_b1 ** 2)),
+               (scaleb2, gamma * scaleb2 + (g_b2 ** 2)),
+               (classifier.W1, classifier.W1 - learning_rate * g_W1/T.sqrt(scaleW1 + epsilon)),
+               (classifier.W2, classifier.W2 - learning_rate * g_W2/T.sqrt(scaleW2 + epsilon)),
+               (classifier.b1, classifier.b1 - learning_rate * g_b1/T.sqrt(scaleb1 + epsilon)),
+               (classifier.b2, classifier.b2 - learning_rate * g_b2/T.sqrt(scaleb2 + epsilon))]
 
     # compiling a Theano function `train_model` that returns the cost, but in
     # the same time updates the parameter of the model based on the rules
     # defined in `updates`
     train_model = theano.function(
         inputs=[index],
-        outputs=[cost, classifier.y_pred, g_W1, g_W2,  g_b1, g_b2, y, classifier.p_y_given_x],
+        outputs=[cost, classifier.y_pred, g_W1, g_W2,  g_b1, g_b2, y, classifier.p_y_given_x, scaleW1],
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
@@ -395,7 +396,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     ###############
     print('... training the model')
     # early-stopping parameters
-    patience = 100000  # look as this many examples regardless
+    patience = 150000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is
                                   # found
     improvement_threshold = 0.995  # a relative improvement of this much is
@@ -419,7 +420,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
         epoch = epoch + 1
         for minibatch_index in range(n_train_batches):
 
-            minibatch_avg_cost,  prediction, dw1, dw2, db1, db2, actual_y, p_y_given_x= train_model(minibatch_index)
+            minibatch_avg_cost,  prediction, dw1, dw2, db1, db2, actual_y, p_y_given_x, scaleW1= train_model(minibatch_index)
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
@@ -442,7 +443,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                 # if we got the best validation score until now
                 if(test_scores[-1] <= test_score):
                     tolerance = tolerance +1
-                    if tolerance > 10:
+                    if tolerance > 15:
                         break
                 else:
                     tolerance = 1
@@ -479,7 +480,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                     with open('best_model.pkl', 'wb') as f:
                         pickle.dump(classifier, f)
 
-            if patience <= iter or tolerance > 10:
+            if patience <= iter or tolerance > 15:
                 done_looping = True
                 break
 

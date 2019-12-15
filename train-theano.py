@@ -35,8 +35,8 @@ def train_with_sgd(model, X_train, y_train, learning_rate=0.005, nepoch=1, evalu
             if (len(losses) > 1 and losses[-1][1] > losses[-2][1]):
                 learning_rate = learning_rate * 0.5  
                 print("Setting learning rate to %f" % learning_rate)
-            sys.stdout.flush()
-            # ADDED! Saving model oarameters
+            # sys.stdout.flush()
+             # ADDED! Saving model oarameters
             save_model_parameters_theano("./data/rnn-theano-%d-%d-%s.npz" % (model.hidden_dim, model.word_dim, time), model)
         # For each training example...
         for i in range(len(y_train)):
@@ -84,6 +84,8 @@ for i, sent in enumerate(tokenized_sentences):
 X_train = np.asarray([[word_to_index[w] for w in sent[:-1]] for sent in tokenized_sentences])
 y_train = np.asarray([[word_to_index[w] for w in sent[1:]] for sent in tokenized_sentences])
 
+if _MODEL_FILE != None:
+    load_model_parameters_theano(_MODEL_FILE, model)
 
 model = RNNTheano(vocabulary_size, hidden_dim=_HIDDEN_DIM)
 t1 = time.time()
@@ -91,7 +93,6 @@ model.sgd_step(X_train[10], y_train[10], _LEARNING_RATE)
 t2 = time.time()
 print("SGD Step time: %f milliseconds" % ((t2 - t1) * 1000.))
 
-if _MODEL_FILE != None:
-    load_model_parameters_theano(_MODEL_FILE, model)
 
-# train_with_sgd(model, X_train, y_train, nepoch=_NEPOCH, learning_rate=_LEARNING_RATE)
+
+train_with_sgd(model, X_train, y_train, nepoch=_NEPOCH, learning_rate=_LEARNING_RATE)
